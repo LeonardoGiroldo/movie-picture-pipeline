@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [latest]
+        node-version: [20]
     defaults:
       run:
         shell: bash
@@ -40,7 +40,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [latest]
+        node-version: [20]
     defaults:
       run:
         shell: bash
@@ -82,7 +82,7 @@ jobs:
         with:
           cache: 'npm'
           cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
-          node-version: latest
+          node-version: 20
 
       - name: Install project dependencies
         run: npm ci
