@@ -24,6 +24,6 @@ function MovieList({ onMovieClick }) {
 
 MovieList.propTypes = {
   onMovieClick: PropTypes.func.isRequired,
-};
+  };
 
 export default MovieList;
