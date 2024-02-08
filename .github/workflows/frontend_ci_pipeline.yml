@@ -82,7 +82,7 @@ jobs:
         with:
           cache: 'npm'
           cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
-          node-version: 16
+          node-version: latest
 
       - name: Install project dependencies
         run: npm ci
