@@ -7,10 +7,7 @@ on:
 
 jobs:
   lint-code:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -19,11 +16,6 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v3
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.10
-
       - name: Setup pipenv
         run: pip install pipenv
 
@@ -31,7 +23,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.local/share/virtualenvs
-          key: python-3.10-${{ runner.os }}-${{ hashFiles('**/Pipfile.lock') }}
+          key: python-dependencies-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Install Project Dependencies
         run: pipenv install --dev
@@ -40,10 +32,7 @@ jobs:
         run: pipenv run lint
 
   test-code:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -52,11 +41,6 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v3
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.10
-
       - name: Setup pipenv
         run: pip install pipenv
 
@@ -64,7 +48,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.local/share/virtualenvs
-          key: python-3.10-${{ runner.os }}-${{ hashFiles('**/Pipfile.lock') }}
+          key: python-dependencies-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Install Project Dependencies
         run: pipenv install --dev
