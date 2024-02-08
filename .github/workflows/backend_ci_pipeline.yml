@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.local/share/virtualenvs
-          key: python-dependencies-${{ hashFiles('**/Pipfile.lock') }}
+          key: python-3.10-${{ runner.os }}-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Install Project Dependencies
         run: pipenv install --dev
@@ -64,7 +64,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.local/share/virtualenvs
-          key: python-dependencies-${{ hashFiles('**/Pipfile.lock') }}
+          key: python-3.10-${{ runner.os }}-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Install Project Dependencies
         run: pipenv install --dev
