@@ -1,0 +1,115 @@
+name: Backend Continuous Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  lint-code:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/backend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Setup pipenv
+        run: pip install pipenv
+
+      - name: Dependency Caching
+        uses: actions/cache@v3
+        with:
+          path: ~/.local/share/virtualenvs
+          key: python-dependencies-${{ hashFiles('**/Pipfile.lock') }}
+
+      - name: Install Project Dependencies
+        run: pipenv install --dev
+
+      - name: Execute linting
+        run: pipenv run lint
+
+  test-code:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/backend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Setup pipenv
+        run: pip install pipenv
+
+      - name: Dependency Caching
+        uses: actions/cache@v3
+        with:
+          path: ~/.local/share/virtualenvs
+          key: python-dependencies-${{ hashFiles('**/Pipfile.lock') }}
+
+      - name: Install Project Dependencies
+        run: pipenv install --dev
+
+      - name: Run tests
+        run: pipenv run test
+
+  build-docker-image:
+    needs: [lint-code, test-code]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/backend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Setup pipenv
+        run: pip install pipenv
+
+      - name: Dependency Caching
+        uses: actions/cache@v3
+        with:
+          path: ~/.local/share/virtualenvs
+          key: python-dependencies-${{ hashFiles('**/Pipfile.lock') }}
+
+      - name: Install Project Dependencies
+        run: pipenv install --dev
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+  
+      - name: Authenticate ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+  
+      - name: ECR Building & Pushing Docker Image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPOSITORY: backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+  
+      - name: Configure Kubernetes Cluster
+        run: aws eks update-kubeconfig --name cluster
+  
+      - name: Update Kubernetes Manifest
+        run: kustomize edit set image $REPOSITORY=$REGISTRY/$REPOSITORY:$IMAGE_TAG
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPOSITORY: backend
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: starter/backend/k8s
+  
+      - name: Deploy to Kubernetes Cluster
+        run: kustomize build | kubectl apply -f -
+        working-directory: starter/backend/k8s

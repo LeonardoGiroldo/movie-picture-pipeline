@@ -1,0 +1,123 @@
+name: Frontend Continuous Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  lint-code:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20]
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/frontend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          cache: 'npm'
+          cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Execute linting
+        run: npx eslint --fix .
+
+  test-code:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20]
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/frontend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          cache: 'npm'
+          cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: CI=true npm test
+
+  build-docker-image:
+    needs: [lint-code, test-code]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/frontend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          cache: 'npm'
+          cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
+          node-version: 20
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Authenticate ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: ECR Building & Pushing Docker Image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPOSITORY: frontend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --build-arg=REACT_APP_MOVIE_API_URL=http://localhost:5000 -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: Configure Kubernetes Cluster
+        run: aws eks update-kubeconfig --name cluster
+
+      - name: Update Kubernetes Manifest
+        run: kustomize edit set image $REPOSITORY=$REGISTRY/$REPOSITORY:$IMAGE_TAG
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPOSITORY: frontend
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: starter/frontend/k8s
+
+      - name: Deploy to Kubernetes Cluster
+        run: kustomize build | kubectl apply -f -
+        working-directory: starter/frontend/k8s
