@@ -1,0 +1,94 @@
+name: build-and-test-frontend-app
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-code:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [14, 16]
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/frontend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          cache: 'npm'
+          cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Execute linting
+        run: npx eslint --fix .
+
+  test-code:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [16, 18]
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/frontend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          cache: 'npm'
+          cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: CI=true npm test
+
+  build-docker-image:
+    needs: [lint-code, test-code]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter/frontend
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          cache: 'npm'
+          cache-dependency-path: ${{github.workspace}}/starter/frontend/package-lock.json
+          node-version: 16
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Build Docker image
+        run: docker build --build-arg=REACT_APP_MOVIE_API_URL=http://localhost:5000 --tag=mp-frontend:latest .
+
+      - name: Start Docker container
+        run: docker run --name mp-frontend -p 3000:3000
