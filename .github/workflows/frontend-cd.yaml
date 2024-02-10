@@ -119,5 +119,5 @@ jobs:
         working-directory: starter/frontend/k8s
 
       - name: Deploy to Kubernetes Cluster
-        run: kustomize build | kubectl apply -f -
+        run: kustomize build | kubectl apply -f - --validate=false
         working-directory: starter/frontend/k8s
